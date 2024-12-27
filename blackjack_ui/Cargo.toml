@@ -53,7 +53,8 @@ atomic_float = "0.1"
 profiling = { version = "1.0" }
 image = { version = "0.24", default-features = false, features = ["png"] }
 nom = "7.1"
-mlua = { version = "0.8.1", features = ["luau"] }
+# mlua = { version = "0.8.1", features = ["luau"] }
+mlua = { version = "0.8.10", features = ["luau"] }
 notify = "4.0"
 walkdir = "2"
 syntect = "4.6"
