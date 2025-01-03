@@ -16,7 +16,7 @@ use blackjack_engine::{
     prelude::{FaceOverlayBuffers, LineBuffers, PointBuffers, VertexIndexBuffers},
 };
 use egui::epaint::RectShape;
-use egui::{Rounding, Shape};
+use egui::{Rect, Rounding, Shape};
 
 use super::gizmo_ui::UiNodeGizmoStates;
 use super::{
@@ -63,6 +63,7 @@ impl ApplicationContext {
     pub fn setup(&self, render_ctx: &mut RenderContext) {
         render_ctx.add_light(r3::DirectionalLight {
             color: glam::Vec3::ONE,
+            resolution: 1,
             intensity: 10.0,
             // Direction will be normalized
             direction: glam::Vec3::new(-1.0, -4.0, 2.0),
@@ -222,9 +223,11 @@ impl ApplicationContext {
             bg_shape,
             Shape::Rect(RectShape {
                 rect: text_rect.expand(5.0),
-                rounding: Rounding::none(),
+                rounding: Rounding::ZERO,
                 fill: egui::Color32::from_rgba_unmultiplied(40, 40, 40, 240),
-                stroke: egui::Stroke::none(),
+                stroke: egui::Stroke::NONE,
+                fill_texture_id: Default::default(),
+                uv: Rect::ZERO,
             }),
         )
     }

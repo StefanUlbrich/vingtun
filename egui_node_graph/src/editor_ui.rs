@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 
 use crate::color_hex_utils::*;
 use crate::utils::ColorUtils;
@@ -182,7 +183,8 @@ where
         /* Draw the node finder, if open */
         let mut should_close_node_finder = false;
         if let Some(ref mut node_finder) = self.node_finder {
-            let mut node_finder_area = Area::new("node_finder").order(Order::Foreground);
+            let mut node_finder_area = Area::new(Id::from("node_finder")).order(Order::Foreground);
+            // let mut node_finder_area = Area::new("node_finder").order(Order::Foreground);
             if let Some(pos) = node_finder.position {
                 node_finder_area = node_finder_area.current_pos(pos);
             }
@@ -810,6 +812,8 @@ where
                     .titlebar_color(ui, self.node_id, self.graph, user_state)
                     .unwrap_or_else(|| background_color.lighten(0.8)),
                 stroke: Stroke::NONE,
+                fill_texture_id: TextureId::default(),
+                uv: Rect::ZERO,
             });
 
             let body_rect = Rect::from_min_size(
@@ -818,9 +822,11 @@ where
             );
             let body = Shape::Rect(RectShape {
                 rect: body_rect,
-                rounding: Rounding::none(),
+                rounding: Rounding::ZERO,
                 fill: background_color,
                 stroke: Stroke::NONE,
+                fill_texture_id: TextureId::default(),
+                uv: Rect::ZERO,
             });
 
             let bottom_body_rect = Rect::from_min_size(
@@ -832,6 +838,8 @@ where
                 rounding,
                 fill: background_color,
                 stroke: Stroke::NONE,
+                fill_texture_id: TextureId::default(),
+                uv: Rect::ZERO,
             });
 
             let node_rect = titlebar_rect.union(body_rect).union(bottom_body_rect);
@@ -841,6 +849,8 @@ where
                     rounding,
                     fill: Color32::WHITE.lighten(0.8),
                     stroke: Stroke::NONE,
+                    fill_texture_id: TextureId::default(),
+                    uv: Rect::ZERO,
                 })
             } else {
                 Shape::Noop

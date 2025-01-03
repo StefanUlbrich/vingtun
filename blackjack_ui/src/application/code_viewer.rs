@@ -44,7 +44,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
         let layout_job = highlight(ui.ctx(), &theme, string, language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
-        ui.fonts().layout_job(layout_job)
+        ui.fonts(|f| f.layout_job(layout_job))
     };
 
     ui.add(
@@ -65,7 +65,7 @@ pub fn code_edit_ui(ui: &mut egui::Ui, code: &mut String) {
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
         let layout_job = highlight(ui.ctx(), &theme, string, language);
         // layout_job.wrap_width = wrap_width; // no wrapping
-        ui.fonts().layout_job(layout_job)
+        ui.fonts(|x| x.layout_job(layout_job))
     };
 
     ui.add(
@@ -88,9 +88,12 @@ pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &
 
     type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
-    let mut memory = ctx.memory();
-    let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
-    highlight_cache.get((theme, code, language))
+    ctx.memory_mut(|memory| {
+        memory
+            .caches
+            .cache::<HighlightCache<'_>>()
+            .get((theme, code, language))
+    })
 }
 
 // ----------------------------------------------------------------------------
@@ -180,21 +183,23 @@ impl CodeTheme {
 
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
-            ctx.data()
-                .get_persisted(egui::Id::new("dark"))
-                .unwrap_or_else(CodeTheme::dark)
+            ctx.data_mut(|data| {
+                data.get_persisted(egui::Id::new("dark"))
+                    .unwrap_or_else(CodeTheme::dark)
+            })
         } else {
-            ctx.data()
-                .get_persisted(egui::Id::new("light"))
-                .unwrap_or_else(CodeTheme::light)
+            ctx.data_mut(|data| {
+                data.get_persisted(egui::Id::new("light"))
+                    .unwrap_or_else(CodeTheme::light)
+            })
         }
     }
 
     pub fn store_in_memory(self, ctx: &egui::Context) {
         if self.dark_mode {
-            ctx.data().insert_persisted(egui::Id::new("dark"), self);
+            ctx.data_mut(|data| data.insert_persisted(egui::Id::new("dark"), self));
         } else {
-            ctx.data().insert_persisted(egui::Id::new("light"), self);
+            ctx.data_mut(|data| data.insert_persisted(egui::Id::new("light"), self));
         }
     }
 }
@@ -286,7 +291,7 @@ impl Highlighter {
                 let underline = if underline {
                     egui::Stroke::new(1.0, text_color)
                 } else {
-                    egui::Stroke::none()
+                    egui::Stroke::NONE
                 };
                 job.sections.push(LayoutSection {
                     leading_space: 0.0,

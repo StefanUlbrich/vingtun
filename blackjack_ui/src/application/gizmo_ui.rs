@@ -6,19 +6,23 @@
 
 use std::{cell::RefCell, hash::Hash, rc::Rc};
 
+use crate::{graph::graph_interop::NodeMapping, prelude::graph::NodeData};
 use anyhow::Result;
 use blackjack_commons::utils::OptionExt;
 use blackjack_engine::{
     gizmos::{BlackjackGizmo, TransformGizmoMode},
     graph::BjkNodeId,
     graph_interpreter::GizmoState,
+    lua_engine::lua_stdlib::LVec3,
 };
-use egui_gizmo::GizmoVisuals;
+use egui::Id;
 use egui_node_graph::{Node, NodeId};
-use glam::Mat4;
+use glam::{DQuat, DVec3, Quat, Vec3};
 use slotmap::SecondaryMap;
+use transform_gizmo_egui::math::Transform;
+use transform_gizmo_egui::prelude::*;
 
-use crate::{graph::graph_interop::NodeMapping, prelude::graph::NodeData};
+// use transform_gizmo_egui::{gizmo, mint::RowMatrix4, Gizmo, GizmoConfig, GizmoMode, GizmoVisuals};
 
 use super::viewport_3d::Viewport3d;
 
@@ -77,19 +81,20 @@ pub fn draw_gizmo_ui_viewport(
                 ui.allocate_ui_at_rect(viewport.viewport_rect().shrink(10.0), |ui| {
                     gizmo_label(ui);
                     if transform_gizmo.translation_enabled
-                        && (ui.button("Move (G)").clicked() || ui.input().key_pressed(egui::Key::G))
+                        && (ui.button("Move (G)").clicked()
+                            || ui.input(|input| input.key_pressed(egui::Key::G)))
                     {
                         transform_gizmo.gizmo_mode = TransformGizmoMode::Translate;
                     }
                     if transform_gizmo.rotation_enabled
                         && (ui.button("Rotate (R)").clicked()
-                            || ui.input().key_pressed(egui::Key::R))
+                            || ui.input(|input| input.key_pressed(egui::Key::R)))
                     {
                         transform_gizmo.gizmo_mode = TransformGizmoMode::Rotate;
                     }
                     if transform_gizmo.scale_enabled
                         && (ui.button("Scale (S)").clicked()
-                            || ui.input().key_pressed(egui::Key::S))
+                            || ui.input(|input| input.key_pressed(egui::Key::S)))
                     {
                         transform_gizmo.gizmo_mode = TransformGizmoMode::Scale;
                     }
@@ -108,21 +113,61 @@ pub fn draw_gizmo_ui_viewport(
                 visuals.highlight_alpha *= 1.2;
             }
 
-            let gizmo = egui_gizmo::Gizmo::new(unique_id)
-                .view_matrix(viewport.view_matrix().to_cols_array_2d())
-                .projection_matrix(viewport.projection_matrix().to_cols_array_2d())
-                .model_matrix(transform_gizmo.matrix().to_cols_array_2d())
-                .viewport(viewport.viewport_rect())
-                .visuals(visuals)
-                .mode(match transform_gizmo.gizmo_mode {
-                    TransformGizmoMode::Translate => egui_gizmo::GizmoMode::Translate,
-                    TransformGizmoMode::Rotate => egui_gizmo::GizmoMode::Rotate,
-                    TransformGizmoMode::Scale => egui_gizmo::GizmoMode::Scale,
-                });
-            if let Some(response) = gizmo.interact(ui) {
+            // let gizmo = Gizmo::new(Id::from(unique_id))
+            //     .config()
+            //     .view_matrix(viewport.view_matrix().into())
+            //     .projection_matrix(viewport.projection_matrix().to_cols_array_2d())
+            //     .model_matrix(transform_gizmo.matrix().to_cols_array_2d())
+            //     .viewport(viewport.viewport_rect())
+            //     .visuals(visuals)
+            //     .mode(match transform_gizmo.gizmo_mode {
+            //         TransformGizmoMode::Translate => GizmoMode::TranslateView,
+            //         TransformGizmoMode::Rotate => GizmoMode::RotateView,
+            //         TransformGizmoMode::Scale => GizmoMode::ScaleUniform,
+            //     });
+
+            let config = GizmoConfig {
+                view_matrix: viewport.view_matrix().as_dmat4().to_cols_array_2d().into(),
+                projection_matrix: viewport
+                    .projection_matrix()
+                    .as_dmat4()
+                    .to_cols_array_2d()
+                    .into(),
+                viewport: viewport.viewport_rect(),
+                mode_override: match transform_gizmo.gizmo_mode {
+                    TransformGizmoMode::Translate => Some(GizmoMode::TranslateView),
+                    TransformGizmoMode::Rotate => Some(GizmoMode::RotateView),
+                    TransformGizmoMode::Scale => Some(GizmoMode::ScaleUniform),
+                },
+                visuals: visuals,
+                ..Default::default()
+            };
+
+            let gizmo = Gizmo::new(config);
+            let transform = Transform::from_scale_rotation_translation(
+                transform_gizmo.scale.as_dvec3().into(),
+                transform_gizmo.rotation.as_dquat().into(),
+                transform_gizmo.translation.as_dvec3().into(),
+            );
+
+            if let Some(response) = gizmo.interact(ui, &[transform]) {
+                let (result, new_transforms) = response;
                 responses.push(GizmoViewportResponse::CaptureMouse);
                 responses.push(GizmoViewportResponse::GizmoIsInteracted);
-                let updated_matrix = Mat4::from_cols_array_2d(&response.transform);
+                for (new_transform, transform) in
+                    new_transforms.iter().zip(std::iter::once(&mut transform))
+                {
+                    // Apply the modified transforms
+                    *transform = *new_transform;
+                }
+
+                // let updated_matrix = Mat4::from_cols_array_2d(transform.into());
+
+                let translation: Vec3 = DVec3::from_array(transform.translation.into()).as_vec3();
+                let rotation: Quat = DQuat::from_array(transform.rotation.into()).as_quat();
+                transform_gizmo.set_translation(LVec3(translation));
+                transform_gizmo.set_rotation(LQuat(rotation));
+
                 transform_gizmo.set_from_matrix(updated_matrix);
             }
         }

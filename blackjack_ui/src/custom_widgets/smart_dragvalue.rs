@@ -279,7 +279,7 @@ impl<'a, 'b> SmartDragValue<'a, 'b> {
 
             painter.rect(
                 Rect::from_min_size(pos, size),
-                Rounding::none(),
+                Rounding::ZERO,
                 if selected_row == i {
                     ui.style().visuals.widgets.active.bg_fill.with_alpha(180)
                 } else {
@@ -331,15 +331,15 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
 
         let id = ui.next_auto_id();
 
-        let shift = ui.input().modifiers.shift_only();
-        let is_slow_speed = shift && ui.memory().is_being_dragged(id);
+        let shift = ui.input(|input| input.modifiers.shift_only());
+        let is_slow_speed = shift && ui.memory(|memory| memory.is_being_dragged(id));
 
         let old_value = get(&mut get_set_value);
         let value = clamp_to_range(old_value, hard_range.clone());
         if old_value != value {
             set(&mut get_set_value, value);
         }
-        let aim_rad = ui.input().aim_radius() as f64;
+        let aim_rad = ui.input(|input| input.aim_radius() as f64);
 
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().clamp(0.0, 15.0) as usize;
         let auto_decimals = auto_decimals + is_slow_speed as usize;
@@ -347,20 +347,16 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
         let value_text = emath::format_with_decimals_in_range(value, decimals..=decimals);
 
         let kb_edit_id = id;
-        let is_kb_editing = ui.memory().has_focus(kb_edit_id);
+        let is_kb_editing = ui.memory(|memory| memory.has_focus(kb_edit_id));
 
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
 
             // This is none the first frame after the TextEdit has gained focus
-            let select_all_text = ui.memory().sdv_global().edit_string.is_none();
+            let select_all_text = ui.memory(|memory| memory.sdv_global().edit_string.is_none());
 
-            let mut value_text = ui
-                .memory()
-                .sdv_global()
-                .edit_string
-                .take()
-                .unwrap_or(value_text);
+            let mut value_text =
+                ui.memory(|memory| memory.sdv_global().edit_string.take().unwrap_or(value_text));
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .id(kb_edit_id)
@@ -387,11 +383,11 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
                 let parsed_value = clamp_to_range(parsed_value, hard_range.clone());
                 set(&mut get_set_value, parsed_value);
             }
-            if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_focus(kb_edit_id);
-                ui.memory().sdv_global().edit_string = None;
+            if ui.input(|input| input.key_pressed(Key::Enter)) {
+                ui.memory(|memory| memory.surrender_focus(kb_edit_id));
+                ui.memory(|memory| memory.sdv_global().edit_string = None);
             } else {
-                ui.memory().sdv_global().edit_string = Some(value_text);
+                ui.memory(|memory| memory.sdv_global().edit_string = Some(value_text));
             }
             response
         } else {
@@ -414,11 +410,11 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
             }
 
             if response.clicked() {
-                ui.memory().request_focus(kb_edit_id);
-                ui.memory().sdv_global().edit_string = None; // Filled in next frame
+                ui.memory(|memory| memory.request_focus(kb_edit_id));
+                ui.memory(|memory| memory.sdv_global().edit_string = None); // Filled in next frame
             } else if response.dragged() {
                 // We take the value and set back at the end of the scope.
-                let mut local_state = std::mem::take(ui.memory().sdv_local(id));
+                let mut local_state = std::mem::take(ui.memory(|memory| memory.sdv_local(id)));
 
                 if response.drag_started() {
                     // NOTE: Only set the range if this is our first time
@@ -441,7 +437,7 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
                     .selected_row
                     .map(|s| s.clamp(0, ranges.len() - 1));
 
-                ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                ui.output_mut(|output| output.cursor_icon = CursorIcon::ResizeHorizontal);
 
                 let mdelta = response.drag_delta();
                 Self::draw_smart_range_selector(ui, &ranges, &mut local_state, response.rect, side);
@@ -450,9 +446,9 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
                 const SCROLL_WHEEL_PRECISION: f32 = 50.0;
 
                 #[cfg(target_os = "macos")]
-                let should_increment = !(ui.input().modifiers.command);
+                let should_increment = !(ui.input(|input| input.modifiers.command));
                 #[cfg(not(target_os = "macos"))]
-                let should_increment = !(ui.input().modifiers.ctrl);
+                let should_increment = !(ui.input(|input| input.modifiers.ctrl));
 
                 let delta_value = {
                     let LocalState {
@@ -468,7 +464,7 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
                     *drag_amount = drag_amount.rem_euclid(MOUSE_AIM_PRECISION);
 
                     // Update the scroll wheel
-                    *scroll_amount += ui.input().scroll_delta.y;
+                    *scroll_amount += ui.input(|input| input.raw_scroll_delta.y);
                     if !should_increment {
                         *scroll_amount += mdelta.y;
                     }
@@ -503,12 +499,12 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
                     set(&mut get_set_value, new_value);
                 }
 
-                *ui.memory().sdv_local(id) = local_state;
+                ui.memory_mut(|memory| memory.sdv_local(id) = local_state);
             } else if response.has_focus() {
-                let change = ui.input().num_presses(Key::ArrowUp) as f64
-                    + ui.input().num_presses(Key::ArrowRight) as f64
-                    - ui.input().num_presses(Key::ArrowDown) as f64
-                    - ui.input().num_presses(Key::ArrowLeft) as f64;
+                let change = ui.input(|input| input.num_presses(Key::ArrowUp) as f64)
+                    + ui.input(|input| input.num_presses(Key::ArrowRight) as f64)
+                    - ui.input(|input| input.num_presses(Key::ArrowDown) as f64)
+                    - ui.input(|input| input.num_presses(Key::ArrowLeft) as f64);
 
                 if change != 0.0 {
                     let new_value = value + speed * change;

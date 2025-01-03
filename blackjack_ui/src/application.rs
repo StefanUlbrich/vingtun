@@ -317,10 +317,11 @@ impl RootViewport {
         // TODO: Maybe this is not the best place to do this. Do it in `update` instead?
         id_picking_routine.set_cursor_pos(
             self.egui_context
-                .input()
-                .pointer
-                .hover_pos()
-                .unwrap_or(egui::Pos2::ZERO),
+                .input(|input| input
+                    .pointer
+                    .hover_pos()
+                    .unwrap_or(egui::Pos2::ZERO),
+                )
             self.viewport_3d.viewport_rect(),
         );
 

@@ -19,7 +19,8 @@ library = []
 [dependencies]
 # mlua = { version = "0.8.1", features = ["luau"] }
 mlua = { version = "0.8.10", features = ["luau"] }
-glam = { version = "0.21.2", features = ["serde", "bytemuck"] }
+# glam = { version = "0.21.2", features = ["serde", "bytemuck"] }
+glam = { version = "0.25.0", features = ["serde", "bytemuck"] }
 blackjack_engine = { path = "../blackjack_engine" }
 gdnative = "0.11.0"
 anyhow = { version = "1.0", features = ["backtrace"] }

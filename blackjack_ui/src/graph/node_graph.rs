@@ -271,8 +271,8 @@ pub fn draw_node_graph(graph_editor: &mut GraphEditor) {
             }
         }
 
-        if ui.input().key_released(egui::Key::C)
-            && ui.input().modifiers.ctrl
+        if ui.input(|input| input.key_released(egui::Key::C))
+            && ui.input(|input| input.modifiers.ctrl)
             && !editor_state.selected_nodes.is_empty()
         {
             match serialization::to_clipboard(
@@ -282,7 +282,7 @@ pub fn draw_node_graph(graph_editor: &mut GraphEditor) {
             ) {
                 Ok(clipboard_data) => {
                     *previous_clipboard_contents = clipboard_data.clone();
-                    ui.output().copied_text = clipboard_data;
+                    ui.output_mut(|output| output.copied_text = clipboard_data);
                 }
                 Err(err) => {
                     println!("Error: Could not generate clipboard data {err:?}");
@@ -290,8 +290,7 @@ pub fn draw_node_graph(graph_editor: &mut GraphEditor) {
             }
         }
 
-        let input = ui.input();
-        let cursor_pos = ui.input().pointer.hover_pos().unwrap_or(egui::Pos2::ZERO);
+        let cursor_pos = ui.input(|input| input.pointer.hover_pos().unwrap_or(egui::Pos2::ZERO));
         let mut do_paste = |snippet: SerializedBjkSnippet| {
             if let Err(err) =
                 serialization::from_clipboard(editor_state, custom_state, snippet, cursor_pos)
@@ -300,9 +299,11 @@ pub fn draw_node_graph(graph_editor: &mut GraphEditor) {
             }
         };
 
-        if let Some(paste_contents) = input.events.iter().find_map(|ev| match ev {
-            egui::Event::Paste(text) => Some(text),
-            _ => None,
+        if let Some(paste_contents) = ui.input(|input| {
+            input.events.iter().find_map(|ev| match ev {
+                egui::Event::Paste(text) => Some(text),
+                _ => None,
+            })
         }) {
             if let Ok(snippet) = serialization::parse_clipboard_snippet(paste_contents) {
                 if previous_clipboard_contents != paste_contents && !*skip_pending_paste_check {
@@ -316,7 +317,7 @@ pub fn draw_node_graph(graph_editor: &mut GraphEditor) {
         }
 
         // Do not borrow the egui context for too long or we will deadlock.
-        drop(input);
+        // drop(input);
 
         let mut clear_pending_paste = false;
         if let Some(pending_paste) = pending_paste_operation {
