@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/7241990/178050668-b4e6fbba-dde2-4688-800a-e1a8458520a0.svg">
-</p>
+# Vingtun
 
 > [!NOTE]
 > This is a fork of [blackjack]() which is inactive and archived, and marks an
