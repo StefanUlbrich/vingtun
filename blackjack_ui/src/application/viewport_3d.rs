@@ -196,10 +196,14 @@ impl Viewport3d {
         self.update_camera(render_ctx);
         self.input.update();
 
-        let camera_manager = &render_ctx.renderer.data_core.lock().camera_manager;
-        self.view_proj_matrix = camera_manager.view_proj();
-        self.view_matrix = camera_manager.view();
-        self.projection_matrix = camera_manager.proj();
+        // let camera_manager = &render_ctx.renderer.data_core.lock().camera_manager;
+        // self.view_proj_matrix = camera_manager.view_proj();
+        // self.view_matrix = camera_manager.view();
+        // self.projection_matrix = camera_manager.proj();
+        let camera_state = &render_ctx.renderer.data_core.lock().viewport_camera_state;
+        self.view_proj_matrix = camera_state.view_proj();
+        self.view_matrix = camera_state.view();
+        self.projection_matrix = camera_state.proj();
 
         // TODO: What if we ever have multiple 3d viewports? There's no way to
         // set the aspect ratio differently for different render passes in rend3
@@ -422,9 +426,9 @@ pub fn mesh_visuals_popup(
     }
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(popup_id);
+        ui.memory_mut(|memory| memory.toggle_popup(popup_id));
     }
-    if ui.memory().is_popup_open(popup_id) {
+    if ui.memory(|memory| memory.is_popup_open(popup_id)) {
         let area_response = egui::Area::new(popup_id)
             .order(egui::Order::Foreground)
             .default_pos(button_response.rect.left_bottom() + egui::vec2(0.0, 10.0))
@@ -437,9 +441,10 @@ pub fn mesh_visuals_popup(
             .response;
 
         if !button_response.clicked()
-            && (ui.input().key_pressed(egui::Key::Escape) || area_response.clicked_elsewhere())
+            && (ui.input(|input| input.key_pressed(egui::Key::Escape))
+                || area_response.clicked_elsewhere())
         {
-            ui.memory().close_popup();
+            ui.memory_mut(|memory| memory.close_popup());
         }
     }
 

@@ -16,7 +16,6 @@ use winit::{
 
 pub mod gui_overlay;
 pub mod input;
-
 use crate::render_context::RenderContext;
 
 pub struct AppWindow {
@@ -25,9 +24,12 @@ pub struct AppWindow {
     window: Window,
 }
 
+// only available with rwh_06 feature
+use winit::raw_window_handle::HasDisplayHandle;
+
 impl AppWindow {
     pub fn new() -> (Self, EventLoop<()>) {
-        let event_loop = winit::event_loop::EventLoop::new();
+        let event_loop = winit::event_loop::EventLoop::new().unwrap();
         let window = {
             let builder = winit::window::WindowBuilder::new()
                 .with_title("Blackjack")
@@ -45,6 +47,7 @@ impl AppWindow {
             UVec2::new(window_size.width, window_size.height),
             scale_factor,
             render_ctx.texture_format,
+            &window.display_handle().unwrap(),
         );
 
         (
@@ -80,26 +83,26 @@ impl AppWindow {
     pub fn run_app(mut self, event_loop: EventLoop<()>) {
         self.root_viewport.setup(&mut self.render_ctx);
 
-        event_loop.run(move |event, _, control| {
+        event_loop.run(move |event, elwt| {
             match event {
                 Event::WindowEvent { ref event, .. } => {
                     match event {
                         // Close requested
                         WindowEvent::CloseRequested => {
                             println!("Close requested");
-                            *control = winit::event_loop::ControlFlow::Exit;
+                            elwt.exit();
+                            // *control = winit::event_loop::ControlFlow::Exit;
                         }
 
                         // Resize
                         WindowEvent::Resized(ref new_size) => {
                             self.render_ctx.on_resize(new_size.width, new_size.height);
                         }
-
                         _ => {}
                     }
                 }
-                // Main events cleared
-                Event::MainEventsCleared => self.on_main_events_cleared(),
+                // Probably a better way to do this instead of redrawing every time (https://docs.rs/winit/0.29.4/i686-pc-windows-msvc/winit/index.html)
+                Event::AboutToWait => self.on_main_events_cleared(),
                 _ => {}
             }
             self.root_viewport.on_winit_event(event);

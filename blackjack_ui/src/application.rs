@@ -15,7 +15,9 @@ use crate::{
     },
 };
 use blackjack_engine::lua_engine::LuaRuntime;
+use egui::{Id, ViewportId};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
+use wgpu::rwh::HasDisplayHandle;
 use winit::window::Window;
 
 use self::{
@@ -76,6 +78,7 @@ pub mod inspector;
 /// An egui widget to display a text editor with source code and syntax
 /// highlighting support
 pub mod code_viewer;
+use winit::raw_window_handle::DisplayHandle;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum OffscreenViewport {
@@ -99,6 +102,7 @@ impl RootViewport {
         window_size: UVec2,
         scale_factor: f64,
         screen_format: r3::TextureFormat,
+        display_handle: &dyn HasDisplayHandle
     ) -> Self {
         // NOTE: As it is now, offscreen_viewports could simply be a struct. The
         // reason it's a HashMap is because in the future there will be multiple
@@ -106,14 +110,23 @@ impl RootViewport {
         // viewport id instead.
         let mut offscreen_viewports = HashMap::new();
         offscreen_viewports.insert(OffscreenViewport::GraphEditor, AppViewport::new());
-        offscreen_viewports.insert(OffscreenViewport::Viewport3d, AppViewport::new());
+        offscreen_viewports.insert(OffscreenViewport::Viewport3d, 
+            AppViewport::new());
 
         let egui_context = egui::Context::default();
         egui_context.set_visuals(blackjack_theme());
 
-        let mut egui_winit_state = egui_winit::State::new_with_wayland_display(None);
-        egui_winit_state.set_max_texture_side(renderer.limits.max_texture_dimension_2d as usize);
-        egui_winit_state.set_pixels_per_point(scale_factor as f32);
+        // let mut egui_winit_state = egui_winit::State::new_with_wayland_display(None);
+        let mut egui_winit_state = egui_winit::State::new(
+            egui_context, 
+            ViewportId(Id::new("RootViewport")), 
+            &display_handle, 
+            Some(scale_factor as f32), 
+            Some(renderer.limits.max_texture_dimension_2d as usize)
+        )
+        ;
+
+
 
         // TODO: Hardcoded node libraries path. Read from cmd line?
         let mut lua_runtime = LuaRuntime::initialize_with_std("./blackjack_lua/".into())
@@ -141,6 +154,7 @@ impl RootViewport {
                 scale_factor as f32,
                 lua_runtime.node_definitions.share(),
                 gizmo_state.share(),
+                &display_handle
             ),
             viewport_3d: Viewport3d::new(),
             offscreen_viewports,

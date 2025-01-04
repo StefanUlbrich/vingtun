@@ -143,11 +143,11 @@ pub fn draw_gizmo_ui_viewport(
                 ..Default::default()
             };
 
-            let gizmo = Gizmo::new(config);
-            let transform = Transform::from_scale_rotation_translation(
-                transform_gizmo.scale.as_dvec3().into(),
-                transform_gizmo.rotation.as_dquat().into(),
-                transform_gizmo.translation.as_dvec3().into(),
+            let mut gizmo = Gizmo::new(config);
+            let mut transform = Transform::from_scale_rotation_translation(
+                transform_gizmo.scale.as_dvec3().to_array(),
+                transform_gizmo.rotation.as_dquat().to_array(),
+                transform_gizmo.translation.as_dvec3().to_array(),
             );
 
             if let Some(response) = gizmo.interact(ui, &[transform]) {
@@ -165,10 +165,10 @@ pub fn draw_gizmo_ui_viewport(
 
                 let translation: Vec3 = DVec3::from_array(transform.translation.into()).as_vec3();
                 let rotation: Quat = DQuat::from_array(transform.rotation.into()).as_quat();
-                transform_gizmo.set_translation(LVec3(translation));
-                transform_gizmo.set_rotation(LQuat(rotation));
-
-                transform_gizmo.set_from_matrix(updated_matrix);
+                let scale = DVec3::from_array(transform.scale.into()).as_vec3();
+                transform_gizmo.translation = translation;
+                transform_gizmo.rotation = rotation;
+                transform_gizmo.scale = scale;
             }
         }
         BlackjackGizmo::None => {}

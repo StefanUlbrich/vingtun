@@ -14,7 +14,9 @@ use crate::{
 use blackjack_engine::graph::{
     serialization::SerializedBjkSnippet, BlackjackValue, DataType, NodeDefinitions,
 };
+use egui::{Id, ViewportId};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
+use wgpu::rwh::HasDisplayHandle;
 
 use super::{blackjack_theme, gizmo_ui::UiNodeGizmoStates};
 
@@ -56,13 +58,21 @@ impl GraphEditor {
         parent_scale: f32,
         node_definitions: NodeDefinitions,
         gizmo_states: UiNodeGizmoStates,
+        display_handle: &dyn HasDisplayHandle,
     ) -> Self {
         let egui_context = egui::Context::default();
         egui_context.set_visuals(blackjack_graph_theme());
 
-        let mut egui_winit_state = egui_winit::State::new_with_wayland_display(None);
-        egui_winit_state.set_max_texture_side(renderer.limits.max_texture_dimension_2d as usize);
-        egui_winit_state.set_pixels_per_point(1.0);
+        let mut egui_winit_state = egui_winit::State::new(
+            egui_context,
+            ViewportId(Id::new("graph_editor")),
+            display_handle,
+            Some(1.0),
+            Some(renderer.limits.max_texture_dimension_2d as usize),
+        );
+        // let mut egui_winit_state = egui_winit::State::new_with_wayland_display(None);
+        // egui_winit_state.set_max_texture_side();
+        // egui_winit_state.set_pixels_per_point(1.0);
 
         Self {
             // Set default zoom to the inverse of ui scale to preserve dpi
@@ -184,7 +194,8 @@ impl GraphEditor {
         viewport_rect: egui::Rect,
     ) {
         self.resize_platform(parent_scale, viewport_rect);
-        self.egui_context.input_mut().pixels_per_point = 1.0 / self.zoom_level();
+        self.egui_context
+            .input_mut(|input| input.pixels_per_point = 1.0 / self.zoom_level());
 
         // The version with forked egui_winit had the following code:
         // self.egui_context

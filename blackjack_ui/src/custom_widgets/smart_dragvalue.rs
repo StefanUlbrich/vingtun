@@ -499,7 +499,7 @@ impl<'a, 'b> Widget for SmartDragValue<'a, 'b> {
                     set(&mut get_set_value, new_value);
                 }
 
-                ui.memory_mut(|memory| memory.sdv_local(id) = local_state);
+                ui.memory_mut(|memory| *memory.sdv_local(id) = local_state);
             } else if response.has_focus() {
                 let change = ui.input(|input| input.num_presses(Key::ArrowUp) as f64)
                     + ui.input(|input| input.num_presses(Key::ArrowRight) as f64)
